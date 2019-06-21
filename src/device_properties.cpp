@@ -43,6 +43,13 @@
 #include <tchar.h>
 #include <math.h>
 
+#include <iostream>
+#include <string.h>
+#include <fstream>
+
+
+
+
 void device_properties(int material){
 	FILE *userin;
 	if ((userin=fopen("user_inputs.txt","w"))==NULL)//Opens and error checks
@@ -100,6 +107,8 @@ void device_properties(int material){
 	carrier* electron=new carrier(pointSMC);
 	carrier* hole=new carrier(pointSMC);
 
+	//double* ITotalCurrent = new double[100]; //hold all the current data per all the trials
+	
 	double breakdown, Pbreakdown, Vsim;
 	/**** BEGIN SIMULATION LOOP VOLTAGE ****/
 	int bias_array=0;
@@ -112,11 +121,18 @@ void device_properties(int material){
 		printf("Width = %e \n", diode.Get_width());
 		double timestep=diode.Get_width()/((double)timeslice*1e5); //Time tracking step size in seconds
 		printf("timestep = %e \n", timestep);
+
 		int CurrentArray=(int)(simulationtime/timestep); // calculates number of timesteps required for simulationtime
+		
 		double cutofftime=(CurrentArray-5)*timestep; // prevents overflow
 		int cutoff =0;
+
+		double* ITotalCurrent=new double[10*CurrentArray]; //hold all the current data per all the trials
+		
+		std::cout << "size of ITotalCurrent array:" << sizeof(ITotalCurrent) << std::endl;
 		double* I=new double[CurrentArray];
 		double* Inum=new double[CurrentArray];
+		
 		int Iarray;
 		for (Iarray=0; Iarray<CurrentArray; Iarray++) {
 			I[Iarray]=0;
@@ -166,6 +182,14 @@ void device_properties(int material){
 		gain=0;
 		double globaltime=0;
 		int num_electron,num_hole,prescent_carriers, pair;
+		
+
+
+		//write the current in the device per trail
+		//std::ofstream fp_transient_current;
+		//std::string fname_transient_current("transient_current");
+		//fp_transient_current.open(fname_transient_current);
+		
 		/**** BEGIN SIMULATION LOOP TRIALS****/
 		for(num=1; num<=Ntrials; num++)
 		{
@@ -209,7 +233,7 @@ void device_properties(int material){
 				hole->Input_pos(1,(diode.Get_xmax()-1e-10));
 				prescent_carriers=1;
 			}
-			//carrierlimit is a threshold to end the simulation early
+			//carrierlimit is a threshold to end the simulation early  - RAMO's theorm
 			double carrierlimit=BreakdownCurrent*diode.Get_width()/(5*constants.Get_q()*1e5);
 
 			/****TRACKS CARRIERS WHILE IN DIODE****/
@@ -507,7 +531,53 @@ void device_properties(int material){
 				if(cutoff==0) printf("Completed trial: %d Gain=%f Pb=%f . Max array index=%d\n",num,printer,Pbprint,Highest);
 				if(cutoff==1) printf("Completed trial: %d Cutoff Pb=%f  Max array index=%d\n",num,Pbprint,Highest);
 			}
+		
+			///PLOT THE Inum array. This gives the time vs. Current per trail.
+			if (num<10)
+			{
+				for(int i=0; i<(CurrentArray-1); i++)
+				{
+					//std::cout << num << std::endl;;
+					//std::cout << i << std::endl;
+					ITotalCurrent[num*CurrentArray+i] = Inum[i];
+					//std::cout << Inum[i] << std::endl;
+				}
+			}
+
+		}	//trails ends
+
+		std::cout << "trials finished" << std::endl;
+
+		//write the total current data to a file
+		std::string str1;//(100,'\0');
+		for(int num=0;num<10;num++)
+		{
+			std::ofstream fp_transient_current;
+			std::string fname(100,'\0');
+			std::snprintf(&fname[0],fname.size(),"%d_trial_current.txt",num);
+			std::cout << fname << std::endl;
+			fp_transient_current.open(fname);
+			
+			for(int i=0; i<CurrentArray-1; i++)
+			{
+				char _t[32];
+				char _c[32];
+				std::snprintf(&_t[0],32,"%g",timestep*i);
+				std::snprintf(&_c[0],32,"%g",ITotalCurrent[num*CurrentArray+i]);
+				str1 = _t;
+				str1 += ',';
+				str1 += _c;
+				str1 += '\n';
+
+				//std::snprintf(&str1[0],str1.size(),"%g,%g",(timestep*i),ITotalCurrent[num*CurrentArray+i]);
+				//std::cout << str1 << std::endl;
+				fp_transient_current << str1;
+			}
+		
+			fp_transient_current.close();
 		}
+
+		delete[] ITotalCurrent;
 
 		F=Ms/(gain*gain);
 		Pbreakdown=breakdown/Ntrials;
