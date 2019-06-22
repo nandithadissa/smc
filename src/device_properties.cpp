@@ -47,6 +47,8 @@
 #include <string.h>
 #include <fstream>
 
+#include <algorithm>
+
 
 
 
@@ -109,15 +111,17 @@ void device_properties(int material){
 
 	//double* ITotalCurrent = new double[100]; //hold all the current data per all the trials
 	
-	double breakdown, Pbreakdown, Vsim;
+	double breakdown, Pbreakdown, Vsim, Vsimtemp;
 	/**** BEGIN SIMULATION LOOP VOLTAGE ****/
 	int bias_array=0;
 	printf("%d %d \n", bias_count, bias_array);
 	for(bias_array=0; bias_array<bias_count; bias_array++)
 	{
 		Vsim=V[bias_array];
-
+		Vsimtemp=Vsim;
 		diode.profiler(Vsim);//generates field profile for diode
+		
+		
 		printf("Width = %e \n", diode.Get_width());
 		double timestep=diode.Get_width()/((double)timeslice*1e5); //Time tracking step size in seconds
 		printf("timestep = %e \n", timestep);
@@ -128,6 +132,7 @@ void device_properties(int material){
 		int cutoff =0;
 
 		double* ITotalCurrent=new double[10*CurrentArray]; //hold all the current data per all the trials
+		double* VTransientVoltage=new double[10*CurrentArray]; //hold the transient voltage across the diode with a 10K resister in series
 		
 		std::cout << "size of ITotalCurrent array:" << sizeof(ITotalCurrent) << std::endl;
 		double* I=new double[CurrentArray];
@@ -185,14 +190,17 @@ void device_properties(int material){
 		
 
 
-		//write the current in the device per trail
-		//std::ofstream fp_transient_current;
-		//std::string fname_transient_current("transient_current");
-		//fp_transient_current.open(fname_transient_current);
-		
+		//Originally the voltage was held constant
+		//Assuming a 10K resister the voltage is now varied as the current increases per each trail
+		double Resister = 1e4;
+
 		/**** BEGIN SIMULATION LOOP TRIALS****/
 		for(num=1; num<=Ntrials; num++)
 		{
+			//start with the bias value
+			Vsimtemp=Vsim;
+			diode.profiler(Vsimtemp);
+
 			for (Iarray=0; Iarray<CurrentArray; Iarray++) {
 				Inum[Iarray]=0;
 			}
@@ -239,6 +247,30 @@ void device_properties(int material){
 			/****TRACKS CARRIERS WHILE IN DIODE****/
 			while(prescent_carriers>0 && cut2==0)
 			{ /****LOOPS OVER ALL PAIRS ****/
+
+
+				//At this point the transient voltage is calculated as recorded for each trial
+				//#####################################################################
+				//calcuate the effective bias
+				//get the max current
+				double max_current_now = *std::max_element(Inum,Inum+CurrentArray);
+				int max_current_pos = std::max_element(Inum,Inum+CurrentArray) - Inum;
+				
+				Vsimtemp = Vsim - Resister*max_current_now;
+				//std::cout<< "voltage:" << Vsimtemp << std::endl;
+				//std::cout<< "max current array position:" << max_current_pos << std::endl;
+				if (num <10){
+					//std::cout<< "max current array position:" << max_current_pos << std::endl;
+					VTransientVoltage[num*CurrentArray+max_current_pos] = Vsimtemp;
+				}
+				diode.profiler(Vsimtemp);
+			
+				//set another exit
+				//if (Vsimtemp < Vsim - 2)
+				//	continue;
+				//######################################################################
+
+
 				for(pair=1; pair<=num_electron; pair++)
 				{
 					int flag=0;
@@ -576,6 +608,38 @@ void device_properties(int material){
 		
 			fp_transient_current.close();
 		}
+
+
+		//write the transient voltage to file here
+		std::string str2;//(100,'\0');
+		for(int num=0;num<10;num++)
+		{
+			std::ofstream fp_transient_voltage;
+			std::string fname(100,'\0');
+			std::snprintf(&fname[0],fname.size(),"%d_trial_voltage.txt",num);
+			std::cout << fname << std::endl;
+			fp_transient_voltage.open(fname);
+			
+			
+			for(int i=0; i<CurrentArray-1; i++)
+			{
+				char _t[32];
+				char _c[32];
+				std::snprintf(&_t[0],32,"%g",timestep*i);
+				std::snprintf(&_c[0],32,"%g",VTransientVoltage[num*CurrentArray+i]);
+				str2 = _t;
+				str2 += ',';
+				str2 += _c;
+				str2 += '\n';
+
+				//std::snprintf(&str1[0],str1.size(),"%g,%g",(timestep*i),ITotalCurrent[num*CurrentArray+i]);
+				//std::cout << str1 << std::endl;
+				fp_transient_voltage << str2;
+			}
+		
+			fp_transient_voltage.close();
+		}
+
 
 		delete[] ITotalCurrent;
 
