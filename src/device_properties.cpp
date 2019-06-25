@@ -49,6 +49,8 @@
 
 #include <algorithm>
 
+#define TRAILS_TO_SAVE 10
+
 
 
 
@@ -109,7 +111,6 @@ void device_properties(int material){
 	carrier* electron=new carrier(pointSMC);
 	carrier* hole=new carrier(pointSMC);
 
-	//double* ITotalCurrent = new double[100]; //hold all the current data per all the trials
 	
 	double breakdown, Pbreakdown, Vsim, Vsimtemp;
 	/**** BEGIN SIMULATION LOOP VOLTAGE ****/
@@ -131,8 +132,10 @@ void device_properties(int material){
 		double cutofftime=(CurrentArray-5)*timestep; // prevents overflow
 		int cutoff =0;
 
-		double* ITotalCurrent=new double[10*CurrentArray]; //hold all the current data per all the trials
-		double* VTransientVoltage=new double[10*CurrentArray]; //hold the transient voltage across the diode with a 10K resister in series
+
+		//data structures to hold the total curret per each run
+		double* ITotalCurrent=new double[TRAILS_TO_SAVE*CurrentArray]; //hold all the current data per all the trials
+		double* VTransientVoltage=new double[TRAILS_TO_SAVE*CurrentArray]; //hold the transient voltage across the diode with a 10K resister in series
 		
 		std::cout << "size of ITotalCurrent array:" << sizeof(ITotalCurrent) << std::endl;
 		double* I=new double[CurrentArray];
@@ -253,17 +256,27 @@ void device_properties(int material){
 				//#####################################################################
 				//calcuate the effective bias
 				//get the max current
-				double max_current_now = *std::max_element(Inum,Inum+CurrentArray);
-				int max_current_pos = std::max_element(Inum,Inum+CurrentArray) - Inum;
 				
-				Vsimtemp = Vsim - Resister*max_current_now;
+
+				double *pmax_current_now = std::max_element(Inum,Inum+CurrentArray);
+				int max_current_pos = pmax_current_now - &Inum[0];
+				
+				Vsimtemp = Vsim - Resister*(*pmax_current_now);
+				
+				//do a change if the voltage chages by a significat amout
+				if (Vsim-Vsimtemp>=0.25)				
+				{	
+					diode.profiler(Vsimtemp);
+				}
+
 				//std::cout<< "voltage:" << Vsimtemp << std::endl;
 				//std::cout<< "max current array position:" << max_current_pos << std::endl;
-				if (num <10){
-					//std::cout<< "max current array position:" << max_current_pos << std::endl;
-					VTransientVoltage[num*CurrentArray+max_current_pos] = Vsimtemp;
+				if (num < TRAILS_TO_SAVE){
+				//std::cout<< "max current array position:" << max_current_pos << std::endl;
+						VTransientVoltage[num*CurrentArray+max_current_pos] = Vsimtemp;
 				}
-				diode.profiler(Vsimtemp);
+				
+				
 			
 				//set another exit
 				//if (Vsimtemp < Vsim - 2)
@@ -565,7 +578,7 @@ void device_properties(int material){
 			}
 		
 			///PLOT THE Inum array. This gives the time vs. Current per trail.
-			if (num<10)
+			if (num<TRAILS_TO_SAVE)
 			{
 				for(int i=0; i<(CurrentArray-1); i++)
 				{
@@ -582,7 +595,7 @@ void device_properties(int material){
 
 		//write the total current data to a file
 		std::string str1;//(100,'\0');
-		for(int num=0;num<10;num++)
+		for(int num=0;num<TRAILS_TO_SAVE;num++)
 		{
 			std::ofstream fp_transient_current;
 			std::string fname(100,'\0');
@@ -612,7 +625,7 @@ void device_properties(int material){
 
 		//write the transient voltage to file here
 		std::string str2;//(100,'\0');
-		for(int num=0;num<10;num++)
+		for(int num=0;num<TRAILS_TO_SAVE;num++)
 		{
 			std::ofstream fp_transient_voltage;
 			std::string fname(100,'\0');
@@ -642,6 +655,7 @@ void device_properties(int material){
 
 
 		delete[] ITotalCurrent;
+		delete[] VTransientVoltage;
 
 		F=Ms/(gain*gain);
 		Pbreakdown=breakdown/Ntrials;
