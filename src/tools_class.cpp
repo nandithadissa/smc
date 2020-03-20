@@ -23,9 +23,16 @@
  */
 
 #include "tools.h"
-#include <conio.h>
+//#include <conio.h>
 #include <math.h>
 #include <stdio.h>
+
+char __getch()
+{
+	//dummy
+	return 'y';
+}
+
 //Constructs and zeros the probability arrays
 tools::tools(SMC *input) : constants(input){
 	int i,j;
@@ -57,7 +64,7 @@ int tools::scattering_probability(){ //calculates the scattering probabilities c
 	if(ratefail||pbfail)
 	{    printf("Output files could not be opened. Would you like to continue (y/n)\n");
 		 do
-		 {inputkey=_getch();}
+		 {inputkey=__getch();}
 		 while(inputkey!='y' && inputkey!='Y' && inputkey!='n' && inputkey!='N');
 		 if (inputkey=='y' || inputkey=='Y')
 			 GoAhead=2;

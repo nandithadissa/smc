@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
-#include <conio.h>
+//#include <conio.h>
 
 double _max(double x,double y)
 {

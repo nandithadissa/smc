@@ -27,7 +27,11 @@
 #include "device.h"
 #include <math.h>
 #include <stdio.h>
-#include <conio.h>
+//#include <conio.h>
+
+char _getch(){return '0';}
+
+
 //Constructor, sets a few variables and calls read() to read in and populate the doping profile.
 //PUBLIC
 device::device(SMC *input) : constants(input){

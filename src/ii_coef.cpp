@@ -37,7 +37,8 @@
 #include "tools.h"
 #include <stdio.h>
 #include <math.h>
-#include <tchar.h>
+//#include <tchar.h>
+#include <string.h>
 
 void ii_coef(int material){
 	SMC constants; //SMC parameter set

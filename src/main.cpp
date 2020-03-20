@@ -21,7 +21,7 @@
 
 #include <stdio.h>
 #include "model.h"
-#include <conio.h>
+//#include <conio.h>
 int main(){
 
 	//request material from user
@@ -39,8 +39,13 @@ int main(){
 	else if (calc==2) drift_velocity(material);
 	else if (calc==3) ii_coef(material);
 
+	printf("Done\n");
+
+/*
 	int inputkey;
 	printf("Press space to exit\n");
-	while((inputkey=_getch())==0);
+	while((inputkey=getc())==0);
+*/
 	return 0;
+
 }

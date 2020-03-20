@@ -40,7 +40,7 @@
 #include "tools.h"
 #include "carrier.h"
 #include <stdio.h>
-#include <tchar.h>
+//#include <tchar.h>
 #include <math.h>
 
 #include <iostream>

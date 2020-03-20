@@ -25,8 +25,9 @@
 #include "dev_prop_func.h"
 #include "histogram.h"
 #include <stdio.h>
-#include <tchar.h>
+//#include <tchar.h>
 #include <math.h>
+#include <string.h>
 
 //Counts the Number of Bias in bias_input.txt
 int biascounter(){
