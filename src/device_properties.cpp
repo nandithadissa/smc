@@ -195,7 +195,7 @@ void device_properties(int material){
 
 		//Originally the voltage was held constant
 		//Assuming a 10K resister the voltage is now varied as the current increases per each trail
-		double Resister = 1e4;
+		double Resister = 100e3;
 
 		/**** BEGIN SIMULATION LOOP TRIALS****/
 		for(num=1; num<=Ntrials; num++)
