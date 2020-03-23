@@ -34,8 +34,16 @@ int main(){
 	printf("Mode: 1) Diode Properties, 2) Drift Velocity, 3) Impact Ionization Coefficients\n");
 	scanf("%d", &calc);
 
+	//enter the series resistance of the for the SPAD
+	double resister;
+	printf("Enter series resister:\n");
+	scanf("%lf", &resister);
+	printf("resister %lf entered\n",resister);
+
+	
+
 	//runs user specified model
-	if (calc==1) device_properties(material);
+	if (calc==1) device_properties(material,resister);
 	else if (calc==2) drift_velocity(material);
 	else if (calc==3) ii_coef(material);
 

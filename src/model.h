@@ -24,7 +24,7 @@
 #define MODEL_H
 
 // device_properties() is defined in device_properties.cpp
-void device_properties(int material);
+void device_properties(int material,double dResister);
 
 // drift_velocity() is defined in drift_velocity.cpp
 void drift_velocity(int material);

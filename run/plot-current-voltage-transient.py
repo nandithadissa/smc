@@ -50,8 +50,10 @@ ax2=ax1.twinx()
 ax1.set_ylabel('current (mA)')
 ax2.set_ylabel('voltage (V)')
 
-cfiles = ["%s_trial_current.txt"%i for i in range(1,10)]
-vfiles = ["%s_trial_voltage.txt"%i for i in range(1,10)]
+files = 100 
+
+cfiles = ["%s_trial_current.txt"%i for i in range(1,files)]
+vfiles = ["%s_trial_voltage.txt"%i for i in range(1,files)]
 
 for cf,cv in zip(cfiles,vfiles):
     p_file(cf,cv,ax1,ax2)
@@ -66,23 +68,19 @@ for cf,vf in zip(cfiles,vfiles):
     C=np.add(C,p_file(cf,vf,ax1,ax2)[1])
     V=np.add(V,p_file(cf,vf,ax1,ax2)[2])
 
-AVG_C = np.divide(C,9)
-AVG_V = np.divide(V,9)
+AVG_C = np.divide(C,files)
+AVG_V = np.divide(V,files)
 
 
 ax1.semilogy(T/1E-12,AVG_C/1E-3,'r.')
 ax2.plot(T/1E-12,AVG_V,'b.')
+plt.xlim(0,10)
+ax1.set_xlabel("Time (ps)")
+ax1.set_ylabel("Current (mA)")
+ax2.set_ylabel("Voltage (V)")
+plt.savefig("average_current_voltage_transient_with_time_M56535p1_test_22V_10K_1.png")
 
-plt.xlim(0,40)
-
-#plt.xlabel("Time (ps)")
+#plt.semilogy(AVG_V,AVG_C/1e-3)
+#plt.xlabel("Voltage (V)")
 #plt.ylabel("Current (mA)")
-plt.savefig("average_current_voltage_transient_with_time_M56535p1_test_22V.png")
-
-
-plt.close()
-
-plt.semilogy(AVG_V,AVG_C/1e-3)
-plt.xlabel("Voltage (V)")
-plt.ylabel("Current (mA)")
-plt.savefig("average_current_voltage_transient_M56535p1_test_22V.png")
+#plt.savefig("average_current_voltage_transient_M56535p1_test_22V.png")

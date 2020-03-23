@@ -49,12 +49,12 @@
 
 #include <algorithm>
 
-#define TRAILS_TO_SAVE 10
+#define TRAILS_TO_SAVE 100 
 
 
 
 
-void device_properties(int material){
+void device_properties(int material, double dResister=10E3){
 	FILE *userin;
 	if ((userin=fopen("user_inputs.txt","w"))==NULL)//Opens and error checks
 	{
@@ -195,7 +195,7 @@ void device_properties(int material){
 
 		//Originally the voltage was held constant
 		//Assuming a 10K resister the voltage is now varied as the current increases per each trail
-		double Resister = 1e4;
+		double Resister = dResister; //500e3;
 
 		/**** BEGIN SIMULATION LOOP TRIALS****/
 		for(num=1; num<=Ntrials; num++)
