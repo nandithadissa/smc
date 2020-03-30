@@ -21,26 +21,36 @@
 
 #include <stdio.h>
 #include "model.h"
+#include <stdlib.h>
+
 //#include <conio.h>
-int main(){
+int main(int argc, char** argv){
+
+	if (argc <2)
+	{
+		printf("enter the resistance\n");
+		return -1;
+	}
+
+	char *enp;
 
 	//request material from user
-	int material;
-	printf("Material: 1) Si, 2) GaAs, 3) InGaP\n");
-	scanf("%d",&material);
+	int material=1;
+	//printf("Material: 1) Si, 2) GaAs, 3) InGaP\n");
+	//scanf("%d",&material);
 
 	//requests model from user
-	int calc;
-	printf("Mode: 1) Diode Properties, 2) Drift Velocity, 3) Impact Ionization Coefficients\n");
-	scanf("%d", &calc);
+	int calc=1;
+	//printf("Mode: 1) Diode Properties, 2) Drift Velocity, 3) Impact Ionization Coefficients\n");
+	//scanf("%d", &calc);
 
 	//enter the series resistance of the for the SPAD
 	double resister;
-	printf("Enter series resister:\n");
-	scanf("%lf", &resister);
+	resister = strtod(argv[1],&enp);
+	//printf("Enter series resister:\n");
+	//scanf("%lf", &resister);
 	printf("resister %lf entered\n",resister);
 
-	
 
 	//runs user specified model
 	if (calc==1) device_properties(material,resister);

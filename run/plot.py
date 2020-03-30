@@ -22,10 +22,10 @@ T=p_file(files[0])[0]
 for f in files:
     C=np.add(C,p_file(f)[1])
 
-AVG_C = np.divide(C,10)
+AVG_C = np.divide(C,120)
 
 
 plt.semilogy(T/1E-12,AVG_C/1E-3)
 plt.xlabel("Time (ps)")
 plt.ylabel("Current (mA)")
-plt.savefig("current_transient.png")
+plt.savefig("current_transient_j82067_19V_10k.png")

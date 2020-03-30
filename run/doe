@@ -1,0 +1,13 @@
+#!/bin/bash
+
+for V in {23..24..1}
+do
+	for R in 1000 10000 100000
+		do
+			#echo 22.0 > bias_input.txt
+			echo $V > bias_input.txt
+			./smc $R
+			python plot-current-voltage-transient.py $V $R
+		done	
+done
+

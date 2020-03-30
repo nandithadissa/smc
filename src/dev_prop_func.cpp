@@ -47,21 +47,24 @@ int biascounter(){
 int timesliceread(){
 	int timeslice;
 	printf("How many divisions per transit time: \n");
-	scanf("%d",&timeslice);
+	//scanf("%d",&timeslice);
+	timeslice = 1000;
 	return timeslice;
 };
 //Reads in User inout
 int usDeviceread(){
 	int usDevice;
 	printf("1)Pure Electron, 2)Pure Hole:\n");
-	scanf("%d",&usDevice);
+	//scanf("%d",&usDevice);
+	usDevice = 1;
 	return usDevice;
 };
 //Reads in User inout
 double simulationtimeread(){
 	double simulationtime;
 	printf("Simulation Time in ps:\n");
-	scanf("%lf",&simulationtime);
+	//scanf("%lf",&simulationtime);
+	simulationtime=100;
 	simulationtime=simulationtime*1e-12;
 	return simulationtime;
 };
@@ -69,7 +72,8 @@ double simulationtimeread(){
 int trialsread(){
 	int Ntrials;
 	printf("Number of trials (Default=10000):\n");
-	scanf("%d", &Ntrials);
+	//scanf("%d", &Ntrials);
+	Ntrials=1000; //test
 	return Ntrials;
 };
 

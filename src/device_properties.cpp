@@ -49,7 +49,7 @@
 
 #include <algorithm>
 
-#define TRAILS_TO_SAVE 100 
+#define TRAILS_TO_SAVE 1000 
 
 
 
@@ -70,7 +70,7 @@ void device_properties(int material, double dResister=10E3){
 	SMC *pointSMC = &constants; //Used to pass constants to other classes.
 	device diode(pointSMC); // Device Class
 	FILE *out;
-	double BreakdownCurrent=1e-4; //define the current threshold for avalanche breakdown as 0.1mA
+	double BreakdownCurrent=1e-5; // changed was at 1e-4 define the current threshold for avalanche breakdown as 0.1mA
 	if ((out=fopen("Result_1.txt","w"))==NULL)//Opens and error checks
 	{   printf("Error: Result_1.txt can't open\n");}
 
@@ -264,7 +264,7 @@ void device_properties(int material, double dResister=10E3){
 				Vsimtemp = Vsim - Resister*(*pmax_current_now);
 				
 				//do a change if the voltage chages by a significat amout
-				if (Vsim-Vsimtemp>=0.25)				
+				if (Vsim-Vsimtemp>=0.05) //was at 0.25 making it smaller
 				{	
 					diode.profiler(Vsimtemp);
 				}
@@ -714,6 +714,6 @@ void device_properties(int material, double dResister=10E3){
 	delete electron;
 	delete hole;
 	fclose(out);
-	postprocess(V, simulationtime, bias_count);
+	//postprocess(V, simulationtime, bias_count);
 	delete[] V;
 }
