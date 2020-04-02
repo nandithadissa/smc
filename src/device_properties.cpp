@@ -48,8 +48,11 @@
 #include <fstream>
 
 #include <algorithm>
+#include <map>
+#include <iterator>
 
-#define TRAILS_TO_SAVE 1000 
+
+#define TRAILS_TO_SAVE 1000
 
 
 
@@ -68,9 +71,11 @@ void device_properties(int material, double dResister=10E3){
 	SMC constants; //SMC parameter set
 	constants.mat(material); // tell constants what material to use
 	SMC *pointSMC = &constants; //Used to pass constants to other classes.
+	
 	device diode(pointSMC); // Device Class
+	
 	FILE *out;
-	double BreakdownCurrent=1e-5; // changed was at 1e-4 define the current threshold for avalanche breakdown as 0.1mA
+	double BreakdownCurrent=1e-4; // changed was at 1e-4 define the current threshold for avalanche breakdown as 0.1mA
 	if ((out=fopen("Result_1.txt","w"))==NULL)//Opens and error checks
 	{   printf("Error: Result_1.txt can't open\n");}
 
@@ -89,6 +94,27 @@ void device_properties(int material, double dResister=10E3){
 		bias_count++;
 	}
 	fclose(bias);
+
+	//create device objects for every bias point at 0.01 V resolution for a 5V range from bias_input value
+	//e.g id the bias_input is 22V, device objects are created between 17V to 22 V at 0.01 resolution
+	/*	
+	std::map<float,device*> diode_map;
+	float bias_range = 10.0;
+	float bias_res = 0.001;
+	float bias_max = V[0];
+
+	printf("creating the diode map'\n");
+	for(int i=0;i< bias_range/bias_res;i++)
+	{
+		device* _pd = new device(pointSMC);
+		printf("calculating field profile for bias:%f'\n",bias_max);
+		_pd->profiler(bias_max);//generates field profile for diode
+		diode_map.insert(std::pair<float,device*>(bias_max,_pd));
+		bias_max -= bias_res;
+	}		
+	//done
+	printf("done .. creating the diode map'\n");
+	*/
 
 	int timeslice = timesliceread();
 	fprintf(userin,"Divisions Per Transit time: %d\n", timeslice);
@@ -120,8 +146,11 @@ void device_properties(int material, double dResister=10E3){
 	{
 		Vsim=V[bias_array];
 		Vsimtemp=Vsim;
-		diode.profiler(Vsim);//generates field profile for diode
 		
+		//std::map<float,device*>::iterator it = diode_map.begin();
+		//device& diode = *(it->second);
+		diode.profiler(Vsim);//generates field profile for diode
+			
 		
 		printf("Width = %e \n", diode.Get_width());
 		double timestep=diode.Get_width()/((double)timeslice*1e5); //Time tracking step size in seconds
@@ -141,6 +170,10 @@ void device_properties(int material, double dResister=10E3){
 		double* I=new double[CurrentArray];
 		double* Inum=new double[CurrentArray];
 		
+		//NEW 04012020
+		double* Vnum=new double[CurrentArray];
+		//		
+
 		int Iarray;
 		for (Iarray=0; Iarray<CurrentArray; Iarray++) {
 			I[Iarray]=0;
@@ -202,11 +235,17 @@ void device_properties(int material, double dResister=10E3){
 		{
 			//start with the bias value
 			Vsimtemp=Vsim;
+			
+			//std::map<float,device*>::iterator it = diode_map.begin();
+			//diode = *(it->second);
 			diode.profiler(Vsimtemp);
 
-			for (Iarray=0; Iarray<CurrentArray; Iarray++) {
+			for (Iarray=0; Iarray<CurrentArray; Iarray++) 
+			{
 				Inum[Iarray]=0;
+				Vnum[Iarray]=Vsim; //INITIALIZE 040102020
 			}
+
 			num_electron=1;
 			num_hole=1;
 			tn=1;
@@ -251,38 +290,19 @@ void device_properties(int material, double dResister=10E3){
 			while(prescent_carriers>0 && cut2==0)
 			{ /****LOOPS OVER ALL PAIRS ****/
 
+				//original
+				//double *pmax_current_now = std::max_element(Inum,Inum+CurrentArray);
+				//int max_current_pos = pmax_current_now - &Inum[0];
+				//Vsimtemp = Vsim - Resister*(*pmax_current_now);
+				//
 
-				//At this point the transient voltage is calculated as recorded for each trial
-				//#####################################################################
-				//calcuate the effective bias
-				//get the max current
-				
-
-				double *pmax_current_now = std::max_element(Inum,Inum+CurrentArray);
-				int max_current_pos = pmax_current_now - &Inum[0];
-				
-				Vsimtemp = Vsim - Resister*(*pmax_current_now);
-				
-				//do a change if the voltage chages by a significat amout
-				if (Vsim-Vsimtemp>=0.05) //was at 0.25 making it smaller
-				{	
-					diode.profiler(Vsimtemp);
-				}
-
-				//std::cout<< "voltage:" << Vsimtemp << std::endl;
+				//if (num < TRAILS_TO_SAVE){
 				//std::cout<< "max current array position:" << max_current_pos << std::endl;
-				if (num < TRAILS_TO_SAVE){
-				//std::cout<< "max current array position:" << max_current_pos << std::endl;
-						VTransientVoltage[num*CurrentArray+max_current_pos] = Vsimtemp;
-				}
+						//VTransientVoltage[num*CurrentArray+max_current_pos] = Vsimtemp;
+				//		VTransientVoltage[num*CurrentArray+current_pos] = Vsimtemp; //changed
+				//}
+				//
 				
-				
-			
-				//set another exit
-				//if (Vsimtemp < Vsim - 2)
-				//	continue;
-				//######################################################################
-
 
 				for(pair=1; pair<=num_electron; pair++)
 				{
@@ -335,6 +355,25 @@ void device_properties(int material, double dResister=10E3){
 								 //Uses Ramos Theorem Here
 								 I[test]+=constants.Get_q()*dx/(dt*diode.Get_width());
 								 Inum[test]+=constants.Get_q()*dx/(dt*diode.Get_width());
+
+								//******************
+								//******************
+
+								//THIS IS THE PLACE THAT THE GIVES THE EXACT TIME SLICE OF THE CURRENT
+								//USE THIS CURRENT TO CALCULATE THE VOLTAGE DROP AND PUT IT IN A BIN CALLED THE Vnum[]
+								//CHANGE THE Vnum AND USE THE Vnum TO MAKE CHANGES TO THE FIELD
+								//FINALLY WRITE THE Vnum TO A FILE AS BEFORE
+								
+								Vnum[test] -= (Resister*Inum[test]);
+
+								if((Vsim - Vnum[test]) > 0.01)
+								{
+									diode.profiler(Vnum[test]);
+								}
+
+								//******************
+								//*****************
+
 							 }
 							 electron->Input_timearray(pair,timearray);
 							 dt=0;
@@ -440,6 +479,12 @@ void device_properties(int material, double dResister=10E3){
 							 for(test=(previous+1); test<(timearray+1); test++) {
 								 I[test]+=constants.Get_q()*dx/(dt*diode.Get_width());
 								 Inum[test]+=constants.Get_q()*dx/(dt*diode.Get_width());
+
+
+								//***************
+								//DO THIS FOR THE HOLES
+								//
+
 							 }
 							 dt=0;
 							 dx=0;
@@ -585,6 +630,7 @@ void device_properties(int material, double dResister=10E3){
 					//std::cout << num << std::endl;;
 					//std::cout << i << std::endl;
 					ITotalCurrent[num*CurrentArray+i] = Inum[i];
+					VTransientVoltage[num*CurrentArray+i] = Vnum[i]; //ADDED 040102020
 					//std::cout << Inum[i] << std::endl;
 				}
 			}
@@ -706,7 +752,7 @@ void device_properties(int material, double dResister=10E3){
 		}
 		delete [] I;
 		delete [] Inum;
-		fclose(counter);
+		fclose(counter);	
 		fclose(Mout);
 	}
 	electron->~carrier();
@@ -716,4 +762,12 @@ void device_properties(int material, double dResister=10E3){
 	fclose(out);
 	//postprocess(V, simulationtime, bias_count);
 	delete[] V;
+
+	//delete the diode_map
+	/*
+	std::map<float,device*>::iterator it;
+	for(it=diode_map.begin();it!=diode_map.end();it++)
+		delete it->second;
+	*/
+	//	
 }
