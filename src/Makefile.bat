@@ -18,6 +18,6 @@ g++ -c device_class.cpp
 g++ -o smc main.o device_class.o carrier_class.o device_properties.o dev_prop_func.o drift_velocity.o functions.o histogram_class.o ii_coef.o SMC_class.o tools_class.o
 
 #mkdir ../run
-cp smc ../run_033120
+cp smc ../run_040320
 rm *.o
 echo "completed. smc.exe in ../run folder"

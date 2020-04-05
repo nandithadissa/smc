@@ -32,6 +32,21 @@
    Jonathan Petticrew, University of Sheffield, 2017.
  */
 
+/*
+	Fieldlookup: git branch handled the issue of the applied voltage transient. A new array Vnum was created.
+	As each electron moves within some time slices, a current is created which is recorded in Inum and the voltage is added on to
+	the Vnum. This Inum and Vnum are written as files
+
+	04-02-2020
+	fixedcap: git branch will introduce a fixed capacitor in parallel to the diode. This will satisfy the following equation:
+		
+		Vd = Vbias - ( Ispad(Vd) + C.dVd/dt ) * R
+
+		where he Vd is the diode bias, C is the fixed cap, R is the quench resister and Vbias is the constant bias voltage on the circuit.
+		
+		The dVd/dt is calculated by taking the 2 adjacent time slots in the Vnum array.
+*/
+
 #include "model.h"
 #include "SMC.h"
 #include "device.h"
@@ -52,10 +67,11 @@
 #include <iterator>
 
 
-#define TRAILS_TO_SAVE 1000
+#define TRAILS_TO_SAVE 100
 
+#define CAP 20 //femto Fareds
 
-
+double cap_current=0;
 
 void device_properties(int material, double dResister=10E3){
 	FILE *userin;
@@ -155,7 +171,7 @@ void device_properties(int material, double dResister=10E3){
 		printf("Width = %e \n", diode.Get_width());
 		double timestep=diode.Get_width()/((double)timeslice*1e5); //Time tracking step size in seconds
 		printf("timestep = %e \n", timestep);
-
+			
 		int CurrentArray=(int)(simulationtime/timestep); // calculates number of timesteps required for simulationtime
 		
 		double cutofftime=(CurrentArray-5)*timestep; // prevents overflow
@@ -233,6 +249,9 @@ void device_properties(int material, double dResister=10E3){
 		/**** BEGIN SIMULATION LOOP TRIALS****/
 		for(num=1; num<=Ntrials; num++)
 		{
+			//
+			printf("trial:%d/%d",num,Ntrials);
+			
 			//start with the bias value
 			Vsimtemp=Vsim;
 			
@@ -364,17 +383,50 @@ void device_properties(int material, double dResister=10E3){
 								//CHANGE THE Vnum AND USE THE Vnum TO MAKE CHANGES TO THE FIELD
 								//FINALLY WRITE THE Vnum TO A FILE AS BEFORE
 								
-								Vnum[test] -= (Resister*Inum[test]);
+								//Vnum[test] -= (Resister*Inum[test]);
 
-								if((Vsim - Vnum[test]) > 0.01)
+								///Vd = Vbias - ( Ispad(Vd) + C.dVd/dt ) * R
+								//THE CAP CANNOT RESPOND FASTER THAN ITS DIELECTRIC RELAXTION TIME 
+								//FOR A 100K R THE TAU = 20 (fFared) * 100K = 2ns
+								//SO, USE 2nS as the denominator in the below equation
+
+								//printf("cap_voltage:%f\n",Vnum[test]-Vnum[test-1]);
+					
+								//THIS IS WITHOUT SELF CONSISTANT SOLVING OF THE VOLTAGE - WRONG - CAP CURRENT IS TOO HIGH
+								//if(test>=1) //the first element is neglected								
+								//	Vnum[test] = Vsim -  (Resister*Inum[test] + Resister*CAP*1e-15*(Vnum[test]-Vnum[test-1])/2e-9);
+						
+
+								//SELF CONSISTANT SOLVING THE VOLTAGE
+								double vdelta = 1E-7;
+								double diff=0.0;
+								double Vnum_previous = Vsim;//Vsum[test];
+								for(int i=0;i<1000000;i++)
 								{
-									diode.profiler(Vnum[test]);
-								}
+									Vnum[test] = Vsim -  vdelta*i;//Vnum[test-1] - vdelta*i;
+									diff = Vnum[test] - (Vsim - Resister*(Inum[test] + (CAP*1e-15*(Vnum[test]-Vnum[test-1])/2e-9)));
+									//diff = Vnum[test] - (Vsim - Resister*(Inum[test] + (CAP*1e-15*(Vnum[test]-Vnum[test-1])/timestep)));
+									if (std::abs(diff) < 1e-3)
+									{ 
+										//printf("tria:%d,diff=%e,converge:%f,i=%d\n",num,diff,Vnum[test],i);
+										break;
+									}
+								}	
 
-								//******************
+
+								if((Vsim - Vnum[test]) > 0.05) //dont' change the field.
+								{
+									//diode.profiler(Vnum[test]);
+									//diode.profiler((float)Vnum[test]);
+									int _t = (int)(Vnum[test]*1000);
+									float _f = ((float)_t)/1000;
+									diode.profiler(_f);
+									printf("trail:%d,cal field using bias:%lf,%lf\n",num,Vnum[test],_f);
+								}
 								//*****************
 
 							 }
+
 							 electron->Input_timearray(pair,timearray);
 							 dt=0;
 							 dx=0;
@@ -762,7 +814,6 @@ void device_properties(int material, double dResister=10E3){
 	fclose(out);
 	//postprocess(V, simulationtime, bias_count);
 	delete[] V;
-
 	//delete the diode_map
 	/*
 	std::map<float,device*>::iterator it;

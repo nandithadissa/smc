@@ -64,7 +64,7 @@ double simulationtimeread(){
 	double simulationtime;
 	printf("Simulation Time in ps:\n");
 	//scanf("%lf",&simulationtime);
-	simulationtime=100;
+	simulationtime=50;
 	simulationtime=simulationtime*1e-12;
 	return simulationtime;
 };
@@ -73,7 +73,7 @@ int trialsread(){
 	int Ntrials;
 	printf("Number of trials (Default=10000):\n");
 	//scanf("%d", &Ntrials);
-	Ntrials=1000; //test
+	Ntrials=100; //test
 	return Ntrials;
 };
 
@@ -155,4 +155,5 @@ void postprocess(double Vsim[],double simtime, int voltages){
 	}
 	fclose(results);
 	delete[] G,F,T;
-};
+}
+;
