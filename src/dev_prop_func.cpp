@@ -64,7 +64,7 @@ double simulationtimeread(){
 	double simulationtime;
 	printf("Simulation Time in ps:\n");
 	//scanf("%lf",&simulationtime);
-	simulationtime=50;
+	simulationtime=500;
 	simulationtime=simulationtime*1e-12;
 	return simulationtime;
 };
@@ -73,7 +73,7 @@ int trialsread(){
 	int Ntrials;
 	printf("Number of trials (Default=10000):\n");
 	//scanf("%d", &Ntrials);
-	Ntrials=100; //test
+	Ntrials=50; //test
 	return Ntrials;
 };
 

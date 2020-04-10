@@ -67,7 +67,7 @@
 #include <iterator>
 
 
-#define TRAILS_TO_SAVE 100
+#define TRAILS_TO_SAVE 50
 
 #define CAP 20 //femto Fareds
 
@@ -246,6 +246,10 @@ void device_properties(int material, double dResister=10E3){
 		//Assuming a 10K resister the voltage is now varied as the current increases per each trail
 		double Resister = dResister; //500e3;
 
+		//data structure to hold the breakdown time step for each trial
+		int trial_bd_times[(int)Ntrials];
+		double trial_bd_minvoltage[(int)Ntrials];
+
 		/**** BEGIN SIMULATION LOOP TRIALS****/
 		for(num=1; num<=Ntrials; num++)
 		{
@@ -258,6 +262,8 @@ void device_properties(int material, double dResister=10E3){
 			//std::map<float,device*>::iterator it = diode_map.begin();
 			//diode = *(it->second);
 			diode.profiler(Vsimtemp);
+
+			trial_bd_times[num]=CurrentArray-1;
 
 			for (Iarray=0; Iarray<CurrentArray; Iarray++) 
 			{
@@ -383,7 +389,7 @@ void device_properties(int material, double dResister=10E3){
 								//CHANGE THE Vnum AND USE THE Vnum TO MAKE CHANGES TO THE FIELD
 								//FINALLY WRITE THE Vnum TO A FILE AS BEFORE
 								
-								//Vnum[test] -= (Resister*Inum[test]);
+								//Vnum[test] -= (Resister*Inum[test]);  //no capacitive effect is considered
 
 								///Vd = Vbias - ( Ispad(Vd) + C.dVd/dt ) * R
 								//THE CAP CANNOT RESPOND FASTER THAN ITS DIELECTRIC RELAXTION TIME 
@@ -397,31 +403,146 @@ void device_properties(int material, double dResister=10E3){
 								//	Vnum[test] = Vsim -  (Resister*Inum[test] + Resister*CAP*1e-15*(Vnum[test]-Vnum[test-1])/2e-9);
 						
 
-								//SELF CONSISTANT SOLVING THE VOLTAGE
-								double vdelta = 1E-7;
-								double diff=0.0;
-								double Vnum_previous = Vsim;//Vsum[test];
-								for(int i=0;i<1000000;i++)
+								//040820
+								//The diode dynamics are considered based on the generated current. The diode resistance is calculated base
+								//on the diode current. Initially we consider just 3 regions of the current. Before breakdown, at breakdown and
+								//after breakdown.
+
+								//first find if the diode reached breakdown
+								bool is_bd=false;				   //did breakdown happen
+								int  timestep_bd = CurrentArray-1; //this is the timestep BD happend
+								bool is_closetobd=false;    //near the breakdown
+								int  timestep_closetobd = CurrentArray-1;
+								//double bd_currentrange = 1e-6; //within the breakdown current
+								bool is_recharge=false;
+								double voltage_bd=0.0;	//final voltage of the diode at the breakdown							
+
+								double breakdowncurrent = BreakdownCurrent*1; 
+								double bd_currentrange = breakdowncurrent*0.1;//1e-6; //within the breakdown current
+							
+								//find the pre-breakdown point	
+								for(int i=0;i<CurrentArray;i++)
 								{
-									Vnum[test] = Vsim -  vdelta*i;//Vnum[test-1] - vdelta*i;
-									diff = Vnum[test] - (Vsim - Resister*(Inum[test] + (CAP*1e-15*(Vnum[test]-Vnum[test-1])/2e-9)));
-									//diff = Vnum[test] - (Vsim - Resister*(Inum[test] + (CAP*1e-15*(Vnum[test]-Vnum[test-1])/timestep)));
-									if (std::abs(diff) < 1e-3)
-									{ 
-										//printf("tria:%d,diff=%e,converge:%f,i=%d\n",num,diff,Vnum[test],i);
+									if((Inum[i]<breakdowncurrent)&&(Inum[i]>breakdowncurrent-bd_currentrange))
+									{
+										//printf("found close to bd point at current step:%d\n",i);
+										is_closetobd=true;
+										timestep_closetobd=i;
+										break;
+									} 
+								}
+
+								//find the breakdown point
+								for(int i=timestep_closetobd;i<CurrentArray;i++)
+								{
+									if (Inum[i]>breakdowncurrent)
+									{
+										//printf("found bd at current step:%d\n",i);
+										is_bd=true;
+										timestep_bd=i;
+										//printf("bd at:%d\n",i);	
 										break;
 									}
-								}	
+								}
+							
+								if(is_bd)
+								{	
+									//printf("trial_timestep_bd:%d and run timestep_bd:%d\n",trial_bd_times[num],timestep_bd);	
+									if (trial_bd_times[num] > timestep_bd)
+										trial_bd_times[num] = timestep_bd;
+								}
 
+								//get the min position as the trial_breakdown time pos
+								//if (true)//(trial_timestep_bd > timestep_bd)
+								//{
+								//	printf("trial timestep for bd:%d\n",trial_timestep_bd);	
+								//	trial_timestep_bd = timestep_bd;
+								//}	
+						
+								double diodeR_nobd 	 = 1E9; //Ohm very large 
+								double diodeR_nearbd = 1E5; //Ohm low
+								double diodeR_bd 	 = 1;   //Ohm very low
+							
+								//check the range
+								if((!is_closetobd)&&(!is_bd)) //no breakdown
+								{
+									Vnum[test] = Vsim - (Resister*Inum[test]);  //no capacitive effect is considered : Tau is very large
+								}
+								
+								if (is_closetobd)
+								{
+									//Vnum[test] = Vsim - (Resister*Inum[test]);  //no capacitive effect is considered : first order calc before selfconsistant
+								
+									//SELF CONSISTANT SOLVING THE VOLTAGE
+									//Vd = Vbias - ( Ispad(Vd) + C.dVd/dt ) * R
+									double vdelta = 1E-4;
+									double diff=0.0;
+									for(int i=0;i<1000;i++)
+									{
+										Vnum[test] = Vsim -  vdelta*i;
+										diff = Vnum[test] - (Vsim - Resister*(Inum[test] + (CAP*1e-15*(Vnum[test]-Vnum[test-1])/(diodeR_nearbd*CAP*1e-15))));
+										if (std::abs(diff) < 1e-3)
+										{ 
+											//printf("tria:%d,diff=%e,converge:%f,i=%d\n",num,diff,Vnum[test],i);
+											break;
+										}
+									}
+								}
+	
+								if (is_bd)
+								{
+									Vnum[test] -= (Inum[test]+Inum[test-1])*0.5*timestep/(CAP*1e-15);					//Vd(t) = Vdo - 1/C(Intergral[ic.dt])	
+									//printf("at bd Vnum:%lf\n",Vnum[test]);												//trapizoidal rule used	
+									voltage_bd=Vnum[test];
+									//trial_bd_minvoltage[num] = Vnum[timestep_bd]; //min vol
+								}
 
+								//put the minimum value in to the breakdown voltage
+								double minvol=Vsim;
+								for(int  i=0;i<CurrentArray;i++)
+								{	
+									if (minvol > Vnum[i])
+									{
+										minvol=Vnum[i];
+									}
+								}
+								//
+								trial_bd_minvoltage[num] = minvol; //min vol
+
+								
+								//040720 test
+								//simulate a breakdown 	
+								//BREAK the SIM in to 3 parts:
+								// 1. Before breakdown the time constant is very large. The cap discharge from the diode so it will be very slow.
+								/*    
+
+									2. Whent he spad fired the current discharges the cap very fast and this happens in sub pico second times. 
+										This is because the diode resistance is now about 1 ohm. So use this to simulate the diode voltage drop.
+			
+									3. After the diode is  breakdown the cap gets recahrged from the source. This happens in ns times.
+
+									4. calculate the voltage profile independently for each case and stich it to gether to get the voltage profile.
+
+								*/
+
+								//feed back to the field
 								if((Vsim - Vnum[test]) > 0.05) //dont' change the field.
 								{
-									//diode.profiler(Vnum[test]);
-									//diode.profiler((float)Vnum[test]);
-									int _t = (int)(Vnum[test]*1000);
-									float _f = ((float)_t)/1000;
-									diode.profiler(_f);
-									printf("trail:%d,cal field using bias:%lf,%lf\n",num,Vnum[test],_f);
+									//if bd is hit kill it
+									if(is_bd)
+									{
+										//printf("trail:%d,bd is hit.. killing the avalanch process by changing the field\n",num);
+										diode.profiler(10.0);
+									}
+									else
+									{
+										//diode.profiler(Vnum[test]);
+										//diode.profiler((float)Vnum[test]);
+										int _t = (int)(Vnum[test]*1000);
+										float _f = ((float)_t)/1000;
+										diode.profiler(_f);
+										//printf("trail:%d,cal field using bias:%lf,%lf\n",num,Vnum[test],_f);
+									}
 								}
 								//*****************
 
@@ -683,8 +804,16 @@ void device_properties(int material, double dResister=10E3){
 					//std::cout << i << std::endl;
 					ITotalCurrent[num*CurrentArray+i] = Inum[i];
 					VTransientVoltage[num*CurrentArray+i] = Vnum[i]; //ADDED 040102020
-					//std::cout << Inum[i] << std::endl;
+
+					//recarge - 040720
+					if (i>trial_bd_times[num])
+					{
+						//VTransientVoltage[num*CurrentArray+i] = Vsim*(1-exp(-(i-trial_bd_times[num])*timestep/(2e-9))); //ADDED 040720 TEST
+						VTransientVoltage[num*CurrentArray+i] = trial_bd_minvoltage[num] + (Vsim-trial_bd_minvoltage[num])*(1-exp(-(i-trial_bd_times[num])*timestep/(2e-9))); //ADDED 040720 TEST
+					}
 				}
+
+				
 			}
 
 		}	//trails ends
